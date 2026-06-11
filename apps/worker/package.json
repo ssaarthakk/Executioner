@@ -1,0 +1,17 @@
+{
+  "name": "@executioner/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon worker.js",
+    "start": "node worker.js"
+  },
+  "dependencies": {
+    "bullmq": "^5.78.0",
+    "dotenv": "^17.4.2",
+    "ioredis": "^5.11.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
