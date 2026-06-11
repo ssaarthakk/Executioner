@@ -2,6 +2,7 @@
   "name": "@executioner/worker",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "nodemon worker.js",
     "start": "node worker.js"
@@ -12,6 +13,9 @@
     "ioredis": "^5.11.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/node": "^25.9.2",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
   }
 }
