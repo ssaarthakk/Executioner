@@ -2,9 +2,11 @@
   "name": "@executioner/api",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "bullmq": "^5.78.0",

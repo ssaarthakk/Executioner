@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "nodemon worker.js",
-    "start": "node worker.js"
+    "build": "tsc",
+    "dev": "tsx watch src/worker.ts",
+    "start": "node dist/worker.js"
   },
   "dependencies": {
     "bullmq": "^5.78.0",
