@@ -13,7 +13,7 @@ export async function runCode(code: string): Promise<ExecutionResult> {
             '--rm',              // delete container after it exits
             '--network=none',    // NO network access
             '--read-only',       // filesystem is read-only
-            '--tmpfs=/sandbox:size=10m,noexec', // writable scratch, 10 MB only
+            '--tmpfs=/sandbox:size=10m,noexec,uid=10000,gid=10000,mode=1777', // writable scratch, 10 MB only
             '--memory=128m',     // max 128 MB RAM
             '--memory-swap=128m',// disable swap
             '--cpus=0.5',        // max 0.5 CPU cores
