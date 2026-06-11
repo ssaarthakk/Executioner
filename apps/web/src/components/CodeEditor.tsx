@@ -31,8 +31,7 @@ export default function CodeEditor({ code, onChange, onClear, onReset }: CodeEdi
                     </button>
                 </div>
             </div>
-
-            {/* Monaco Editor Container (Dark Theme) */}
+            
             <div className="flex-1 bg-[#1e1e1e] p-1 relative min-h-[320px]">
                 <Editor
                     height="100%"
