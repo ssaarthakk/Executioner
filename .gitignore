@@ -2,3 +2,4 @@ node_modules/
 SecurePythonExecutionArchitecture.md
 dist/
 *.log
+DESIGN.md
