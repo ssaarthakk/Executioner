@@ -63,10 +63,6 @@ export default function App() {
                     />
                 </div>
             </main>
-
-            <footer className="py-4 text-center border-t border-white/8 bg-slate-950 text-xs text-slate-500">
-                Secure Code Execution Sandbox System &copy; 2026. Fully Isolated.
-            </footer>
         </div>
     );
 }

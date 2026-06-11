@@ -4,32 +4,32 @@ interface HeaderProps {
 
 export default function Header({ apiHealth }: HeaderProps) {
     return (
-        <header className="glass-panel border-t-0 border-x-0 px-6 py-4 flex items-center justify-between z-10">
+        <header className="bg-canvas border-b border-hairline px-6 py-4 flex items-center justify-between z-10">
             <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-500/20">
-                    P
+                <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white font-mono font-bold tracking-tighter text-sm">
+                    Ex
                 </div>
                 <div>
-                    <h1 className="text-lg font-bold tracking-tight text-white flex items-center">
-                        SECURE RUNNER
-                        <span className="ml-2 text-[10px] font-medium px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                            PYTHON 3.12
+                    <h1 className="text-md font-bold tracking-tight text-ink flex items-center">
+                        EXECUTIONER
+                        <span className="ml-2.5 text-[10px] font-mono tracking-wider px-2 py-0.5 rounded bg-surface-strong text-ink border border-hairline-strong font-medium">
+                            SANDBOX v3.12
                         </span>
                     </h1>
                 </div>
             </div>
 
-            <div className="flex items-center space-x-6 text-sm">
+            <div className="flex items-center space-x-6 text-xs font-medium">
                 <div className="flex items-center space-x-2">
-                    <span className="text-slate-400">API Connection:</span>
-                    <div className="flex items-center space-x-1.5">
-                        <span className={`w-2 h-2 rounded-full ${
-                            apiHealth === 'online' ? 'bg-emerald-500' :
-                            apiHealth === 'offline' ? 'bg-rose-500' : 'bg-slate-500'
+                    <span className="text-body font-normal">API Connection:</span>
+                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-canvas-soft border border-hairline">
+                        <span className={`w-2.5 h-2.5 rounded-full border border-white/20 ${
+                            apiHealth === 'online' ? 'bg-semantic-success' :
+                            apiHealth === 'offline' ? 'bg-semantic-error' : 'bg-muted'
                         }`} />
-                        <span className={`font-semibold capitalize ${
-                            apiHealth === 'online' ? 'text-emerald-400' :
-                            apiHealth === 'offline' ? 'text-rose-400' : 'text-slate-400'
+                        <span className={`font-mono uppercase text-[10px] font-bold ${
+                            apiHealth === 'online' ? 'text-semantic-success' :
+                            apiHealth === 'offline' ? 'text-semantic-error' : 'text-body'
                         }`}>
                             {apiHealth}
                         </span>

@@ -1,4 +1,5 @@
 import { ExecutionStatus } from '../types';
+import Timeline from './Timeline';
 
 interface ExecutionControlsProps {
     status: ExecutionStatus;
@@ -11,51 +12,63 @@ interface ExecutionControlsProps {
 export default function ExecutionControls({ status, jobId, exitCode, apiHealth, onRun }: ExecutionControlsProps) {
     const getStatusBadgeClass = () => {
         switch (status) {
-            case 'idle': return 'bg-slate-800 text-slate-400 border border-slate-700';
-            case 'submitting': return 'bg-amber-500/10 text-amber-400 border border-amber-500/30';
-            case 'waiting': return 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 animate-pulse';
-            case 'active': return 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse';
+            case 'idle': return 'bg-canvas-soft text-body border-hairline';
+            case 'submitting': return 'bg-timeline-thinking/20 text-timeline-thinking border-timeline-thinking/40';
+            case 'waiting': return 'bg-timeline-grep/20 text-timeline-grep border-timeline-grep/40 animate-pulse';
+            case 'active': return 'bg-timeline-read/20 text-timeline-read border-timeline-read/40 animate-pulse';
             case 'completed': 
                 return exitCode === 0 
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/30';
-            case 'failed': return 'bg-rose-500/10 text-rose-400 border border-rose-500/30';
-            case 'rate-limited': return 'bg-red-500/20 text-red-400 border border-red-500/40';
-            default: return 'bg-slate-800 text-slate-400';
+                    ? 'bg-semantic-success/10 text-semantic-success border-semantic-success/20' 
+                    : 'bg-semantic-error/10 text-semantic-error border-semantic-error/20';
+            case 'failed': return 'bg-semantic-error/10 text-semantic-error border-semantic-error/20';
+            case 'rate-limited': return 'bg-semantic-error/15 text-semantic-error border-semantic-error/30';
+            default: return 'bg-canvas-soft text-body border-hairline';
         }
     };
 
     const isRunning = status === 'submitting' || status === 'waiting' || status === 'active';
 
     return (
-        <div className="glass-panel rounded-xl p-5 flex items-center justify-between border border-white/8">
-            <div>
-                <div className="text-xs text-slate-400 font-semibold mb-1">EXECUTION STATE</div>
-                <span className={`text-[11px] font-mono px-2.5 py-1 rounded-full uppercase font-bold tracking-wider ${getStatusBadgeClass()}`}>
-                    {status.replace('-', ' ')}
-                </span>
-                {jobId && (
-                    <div className="text-[10px] font-mono text-slate-500 mt-2 truncate max-w-[180px]">
-                        ID: {jobId}
+        <div className="bg-surface-card border border-hairline rounded-lg p-5 flex flex-col space-y-5">
+            <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                    <div className="text-[10px] uppercase font-mono tracking-[0.08em] text-body font-bold">
+                        Execution State
                     </div>
-                )}
-            </div>
+                    
+                    <div className="flex items-center space-x-2">
+                        <span className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 border rounded-full ${getStatusBadgeClass()}`}>
+                            {status.replace('-', ' ')}
+                        </span>
+                        
+                        {jobId && (
+                            <span className="text-[10px] font-mono text-muted truncate max-w-[120px]" title={jobId}>
+                                ID: {jobId.slice(0, 8)}...
+                            </span>
+                        )}
+                    </div>
+                </div>
 
-            <button
-                onClick={onRun}
-                disabled={isRunning || apiHealth !== 'online'}
-                className={`px-6 py-3 rounded-lg text-sm font-bold text-white shadow-lg transition-all duration-200 cursor-pointer ${
-                    isRunning
-                        ? 'bg-indigo-500/40 text-slate-300 cursor-not-allowed border border-indigo-500/20'
-                        : apiHealth !== 'online'
-                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                        : 'bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 hover:scale-[1.02] border border-indigo-400/20 hover:shadow-indigo-500/20'
-                }`}
-            >
-                {status === 'submitting' ? 'Submitting...' :
-                 status === 'waiting' ? 'Queued...' :
-                 status === 'active' ? 'Executing...' : 'Run Code'}
-            </button>
+                <button
+                    onClick={onRun}
+                    disabled={isRunning || apiHealth !== 'online'}
+                    className={`px-5 py-2.5 rounded text-xs font-bold text-on-primary transition-all duration-150 cursor-pointer ${
+                        isRunning
+                            ? 'bg-primary/50 text-white/70 cursor-not-allowed border border-primary/20'
+                            : apiHealth !== 'online'
+                            ? 'bg-canvas-soft text-muted border border-hairline cursor-not-allowed'
+                            : 'bg-primary hover:bg-primary-active text-white border border-primary/10 hover:scale-[1.01]'
+                    }`}
+                >
+                    {status === 'submitting' ? 'Submitting...' :
+                     status === 'waiting' ? 'Queued...' :
+                     status === 'active' ? 'Running...' : 'Run Code'}
+                </button>
+            </div>
+            
+            <hr className="border-t border-hairline-soft" />
+
+            <Timeline status={status} exitCode={exitCode} />
         </div>
     );
 }
