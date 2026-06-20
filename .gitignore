@@ -3,3 +3,4 @@ SecurePythonExecutionArchitecture.md
 dist/
 *.log
 DESIGN.md
+ARCHITECTURE_V3.md
