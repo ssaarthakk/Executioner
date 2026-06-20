@@ -1,13 +1,18 @@
 FROM python:3.12-slim
 
-RUN useradd --uid 10000 --no-create-home --shell /bin/false runner
+RUN groupadd -g 10000 runner && \
+    useradd  -u 10000 -g runner -s /bin/false -M runner
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps && \
+    rm -rf /var/lib/apt/lists/*
+
+# RUN pip install --no-cache-dir \
+#     numpy pandas requests flask
 
 RUN mkdir /sandbox && chown runner:runner /sandbox
 
 USER runner
 WORKDIR /sandbox
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["sleep", "infinity"]
