@@ -10,10 +10,12 @@
   },
   "dependencies": {
     "bullmq": "^5.78.0",
+    "dockerode": "^4.0.2",
     "dotenv": "^17.4.2",
     "ioredis": "^5.11.1"
   },
   "devDependencies": {
+    "@types/dockerode": "^3.3.29",
     "@types/node": "^25.9.2",
     "nodemon": "^3.1.14",
     "tsx": "^4.22.4",
