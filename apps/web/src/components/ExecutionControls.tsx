@@ -7,9 +7,10 @@ interface ExecutionControlsProps {
     exitCode: number | null;
     apiHealth: 'online' | 'offline' | 'checking';
     onRun: () => void;
+    onCancel: () => void;
 }
 
-export default function ExecutionControls({ status, jobId, exitCode, apiHealth, onRun }: ExecutionControlsProps) {
+export default function ExecutionControls({ status, jobId, exitCode, apiHealth, onRun, onCancel }: ExecutionControlsProps) {
     const getStatusBadgeClass = () => {
         switch (status) {
             case 'idle': return 'bg-canvas-soft text-body border-hairline';
@@ -49,21 +50,27 @@ export default function ExecutionControls({ status, jobId, exitCode, apiHealth, 
                     </div>
                 </div>
 
-                <button
-                    onClick={onRun}
-                    disabled={isRunning || apiHealth !== 'online'}
-                    className={`px-5 py-2.5 rounded text-xs font-bold text-on-primary transition-all duration-150 cursor-pointer ${
-                        isRunning
-                            ? 'bg-primary/50 text-white/70 cursor-not-allowed border border-primary/20'
-                            : apiHealth !== 'online'
-                            ? 'bg-canvas-soft text-muted border border-hairline cursor-not-allowed'
-                            : 'bg-primary hover:bg-primary-active text-white border border-primary/10 hover:scale-[1.01]'
-                    }`}
-                >
-                    {status === 'submitting' ? 'Submitting...' :
-                     status === 'waiting' ? 'Queued...' :
-                     status === 'active' ? 'Running...' : 'Run Code'}
-                </button>
+                {isRunning ? (
+                    <button
+                        onClick={onCancel}
+                        className="px-5 py-2.5 rounded text-xs font-bold bg-semantic-error hover:bg-semantic-error/85 text-white border border-semantic-error/10 hover:scale-[1.01] transition-all duration-150 cursor-pointer"
+                        title="Force kill container execution"
+                    >
+                        Cancel Run
+                    </button>
+                ) : (
+                    <button
+                        onClick={onRun}
+                        disabled={apiHealth !== 'online'}
+                        className={`px-5 py-2.5 rounded text-xs font-bold text-on-primary transition-all duration-150 cursor-pointer ${
+                            apiHealth !== 'online'
+                                ? 'bg-canvas-soft text-muted border border-hairline cursor-not-allowed'
+                                : 'bg-primary hover:bg-primary-active text-white border border-primary/10 hover:scale-[1.01]'
+                        }`}
+                    >
+                        Run Code
+                    </button>
+                )}
             </div>
             
             <hr className="border-t border-hairline-soft" />

@@ -17,12 +17,14 @@ export default function App() {
         setSelectedPayloadId,
         status,
         jobId,
-        stdout,
         exitCode,
-        errorMessage,
         apiHealth,
         loadPayload,
         handleRunCode,
+        handleCancel,
+        sendStdin,
+        sendResize,
+        subscribeToTerminal,
         handleClearEditor,
         handleResetEditor
     } = useCodeExecution();
@@ -60,12 +62,14 @@ export default function App() {
                         exitCode={exitCode}
                         apiHealth={apiHealth}
                         onRun={handleRunCode}
+                        onCancel={handleCancel}
                     />
 
                     <TerminalOutput
-                        stdout={stdout}
+                        subscribeToTerminal={subscribeToTerminal}
+                        sendStdin={sendStdin}
+                        sendResize={sendResize}
                         exitCode={exitCode}
-                        errorMessage={errorMessage}
                     />
                 </div>
             </main>

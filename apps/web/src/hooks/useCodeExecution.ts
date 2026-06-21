@@ -2,45 +2,140 @@ import { useState, useEffect, useRef } from 'react';
 import { ExecutionStatus, SecurityPayload } from '../types';
 import { SECURITY_PAYLOADS } from '../constants/payloads';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export function useCodeExecution() {
     const [code, setCode] = useState<string>(SECURITY_PAYLOADS[0].code);
     const [selectedPayloadId, setSelectedPayloadId] = useState<string>('normal');
     const [status, setStatus] = useState<ExecutionStatus>('idle');
     const [jobId, setJobId] = useState<string | null>(null);
-    const [stdout, setStdout] = useState<string>('');
     const [exitCode, setExitCode] = useState<number | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [apiHealth, setApiHealth] = useState<'online' | 'offline' | 'checking'>('checking');
     
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const pollCounterRef = useRef<number>(0);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const subscribersRef = useRef<((data: string) => void)[]>([]);
 
-    useEffect(() => {
-        const checkHealth = async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/health`);
-                if (res.ok) {
-                    setApiHealth('online');
-                } else {
-                    setApiHealth('offline');
+    const [sessionId] = useState(() => {
+        let id = localStorage.getItem('runnerSessionId');
+        if (!id) {
+            id = crypto.randomUUID();
+            localStorage.setItem('runnerSessionId', id);
+        }
+        return id;
+    });
+
+    const notifySubscribers = (data: string) => {
+        subscribersRef.current.forEach(callback => callback(data));
+    };
+
+    const subscribeToTerminal = (callback: (data: string) => void) => {
+        subscribersRef.current.push(callback);
+        return () => {
+            subscribersRef.current = subscribersRef.current.filter(cb => cb !== callback);
+        };
+    };
+
+    const getWsUrl = () => {
+        const url = API_BASE_URL.replace(/^http/, 'ws');
+        return `${url}/ws?sessionId=${sessionId}`;
+    };
+
+    const connect = () => {
+        if (wsRef.current) return;
+
+        const wsUrl = getWsUrl();
+        console.log(`[WS] Connecting to ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+            console.log('[WS] Connected to gateway');
+            setApiHealth('online');
+            notifySubscribers('\r\n\x1b[32m[Connected to secure execution gateway]\x1b[0m\r\n');
+
+            // Send local heartbeat
+            heartbeatTimerRef.current = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'heartbeat' }));
                 }
-            } catch (err) {
-                setApiHealth('offline');
+            }, 30000);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const msg = JSON.parse(event.data);
+
+                switch (msg.type) {
+                    case 'ready':
+                        setStatus('idle');
+                        break;
+                    case 'queued':
+                        setStatus('waiting');
+                        setJobId(msg.jobId);
+                        notifySubscribers('\x1b[33m[Execution queued in queue]\x1b[0m\r\n');
+                        break;
+                    case 'running':
+                        setStatus('active');
+                        notifySubscribers('\x1b[36m[Sandbox ready. Executing code snippet...]\x1b[0m\r\n');
+                        break;
+                    case 'output':
+                        notifySubscribers(atob(msg.data));
+                        break;
+                    case 'done':
+                        setStatus('completed');
+                        setExitCode(msg.exitCode);
+                        notifySubscribers(`\r\n\x1b[32m[Process exited with code ${msg.exitCode}]\x1b[0m\r\n`);
+                        break;
+                    case 'error':
+                        setStatus('failed');
+                        setErrorMessage(msg.message);
+                        notifySubscribers(`\r\n\x1b[31m[Sandbox Error: ${msg.message}]\x1b[0m\r\n`);
+                        break;
+                    case 'pong':
+                        break;
+                }
+            } catch (err: any) {
+                console.error('[WS] Parse error:', err.message);
             }
         };
-        checkHealth();
-        const healthTimer = setInterval(checkHealth, 10000);
-        return () => {
-            clearInterval(healthTimer);
+
+        ws.onclose = (event) => {
+            console.log(`[WS] Connection closed: ${event.code}`);
+            wsRef.current = null;
+            setApiHealth('offline');
+            setStatus('idle');
+            
+            if (heartbeatTimerRef.current) {
+                clearInterval(heartbeatTimerRef.current);
+                heartbeatTimerRef.current = null;
+            }
+
+            if (event.code !== 4000) {
+                notifySubscribers('\r\n\x1b[33m[Lost gateway connection. Reconnecting...]\x1b[0m\r\n');
+                reconnectTimerRef.current = setTimeout(connect, 3000);
+            }
         };
-    }, []);
+
+        ws.onerror = () => {
+            setApiHealth('offline');
+        };
+    };
 
     useEffect(() => {
+        connect();
+
         return () => {
-            if (pollIntervalRef.current) {
-                clearInterval(pollIntervalRef.current);
+            if (wsRef.current) {
+                wsRef.current.close();
+            }
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+            }
+            if (heartbeatTimerRef.current) {
+                clearInterval(heartbeatTimerRef.current);
             }
         };
     }, []);
@@ -50,117 +145,50 @@ export function useCodeExecution() {
         setSelectedPayloadId(payload.id);
     };
 
-    const handleRunCode = async () => {
-        if (status === 'submitting' || status === 'waiting' || status === 'active') {
+    const handleRunCode = () => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            notifySubscribers('\r\n\x1b[31m[Gateway Offline: Cannot run code]\x1b[0m\r\n');
             return;
         }
 
         setStatus('submitting');
-        setStdout('Submitting code to queue...\n');
         setExitCode(null);
         setErrorMessage(null);
         setJobId(null);
-        pollCounterRef.current = 0;
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/execute`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
-            });
+        notifySubscribers('\x1b[2J\x1b[H\x1b[36m[Submitting code...]\x1b[0m\r\n');
 
-            if (response.status === 429) {
-                setStatus('rate-limited');
-                setErrorMessage('Too many requests. You have triggered the rate limiter (max 10 runs per minute).');
-                setStdout('Execution rejected: 429 Too Many Requests\n');
-                return;
-            }
+        wsRef.current.send(JSON.stringify({
+            type: 'run',
+            code: btoa(code),
+            language: 'python',
+            version: '3.12'
+        }));
+    };
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                setStatus('failed');
-                setErrorMessage(data.error || 'Validation error or submission failure.');
-                setStdout(`Error: ${data.error || 'Failed to execute code'}\n`);
-                return;
-            }
-
-            setJobId(data.jobId);
-            setStatus('waiting');
-            setStdout(prev => prev + `Job successfully queued. ID: ${data.jobId}\nPolling for worker thread...`);
-
-            startPolling(data.jobId);
-        } catch (err: any) {
-            console.error(err);
-            setStatus('failed');
-            setErrorMessage('Could not establish connection to the API server.');
-            setStdout('Error: API Connection Failed. Make sure the API server is running.\n');
+    const handleCancel = () => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({ type: 'cancel' }));
+            notifySubscribers('\r\n\x1b[31m[SIGKILL command sent to sandbox...]\x1b[0m\r\n');
         }
     };
 
-    const startPolling = (targetJobId: string) => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
+    const sendStdin = (data: string) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'stdin',
+                data: btoa(data)
+            }));
         }
-
-        pollIntervalRef.current = setInterval(async () => {
-            pollCounterRef.current += 1;
-
-            if (pollCounterRef.current > 60) {
-                stopPolling();
-                setStatus('failed');
-                setErrorMessage('Execution timed out while polling the queue.');
-                setStdout(prev => prev + '\n[Error: Poll timeout reached. Is the worker container running?]');
-                return;
-            }
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/execute/${targetJobId}`);
-                if (!res.ok) {
-                    throw new Error(`Server returned HTTP ${res.status}`);
-                }
-
-                const data = await res.json();
-
-                if (data.status === 'done') {
-                    stopPolling();
-                    setStatus('completed');
-                    setStdout(data.result?.stdout || '(No output produced)');
-                    setExitCode(data.result?.exitCode);
-                } else if (data.status === 'error') {
-                    stopPolling();
-                    setStatus('failed');
-                    setErrorMessage(data.error);
-                    setStdout(`Execution error: ${data.error}`);
-                    setExitCode(1);
-                } else if (data.status === 'active') {
-                    setStatus('active');
-                    setStdout('Job acquired by worker! Executing container...');
-                } else if (data.status === 'waiting') {
-                    setStatus('waiting');
-                    setStdout(prev => {
-                        if (prev.endsWith('...')) return prev.slice(0, -3) + '.';
-                        if (prev.endsWith('..')) return prev + '.';
-                        if (prev.endsWith('.')) return prev + '.';
-                        return prev + '.';
-                    });
-                }
-            } catch (err: any) {
-                console.error('Polling error:', err);
-                if (pollCounterRef.current > 10) {
-                    stopPolling();
-                    setStatus('failed');
-                    setErrorMessage('Failed to fetch job updates from server.');
-                    setStdout(prev => prev + '\n[Error: Lost communication with server]');
-                }
-            }
-        }, 500);
     };
 
-    const stopPolling = () => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
+    const sendResize = (cols: number, rows: number) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
+                type: 'resize',
+                cols,
+                rows
+            }));
         }
     };
 
@@ -186,12 +214,15 @@ export function useCodeExecution() {
         setSelectedPayloadId,
         status,
         jobId,
-        stdout,
         exitCode,
         errorMessage,
         apiHealth,
         loadPayload,
         handleRunCode,
+        handleCancel,
+        sendStdin,
+        sendResize,
+        subscribeToTerminal,
         handleClearEditor,
         handleResetEditor
     };
